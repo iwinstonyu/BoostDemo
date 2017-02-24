@@ -12,15 +12,21 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
+#include <boost/property_tree/xml_parser.hpp>
+
+
 using namespace std;
 
 void TestLambda();
 void TestJson();
+void TestXML();
 
 
 int main()
 {
-	TestJson();
+	//TestJson();
+
+	TestXML();
 
 	system("pause");
 }
@@ -66,4 +72,13 @@ void TestJson()
 	cout << endl;
 
 	cout << "password: " << ptData.get<string>("password") << endl;
+}
+
+void TestXML()
+{
+	boost::property_tree::ptree ptData;
+	boost::property_tree::xml_parser::read_xml("center1.xml", ptData);
+
+	cout << ptData.get<string>("Config.CoreConfig.Net.InternalAddress") << endl;
+
 }

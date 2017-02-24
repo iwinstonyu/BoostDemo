@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Config base="LobbyPlatform.xml">
+  <CommonConfig>
+  </CommonConfig>
+
+  <CoreConfig>
+    <Net>
+      <InternalAddress>255.255.255.255 3001</InternalAddress>
+    </Net>
+  </CoreConfig>
+
+  <LpProtocolConfig/>
+
+  <LpCenterConfig>
+	<HoldUserDB>1</HoldUserDB>
+	<HoldGsReception>1</HoldGsReception>
+	<HoldUserFriendManager>1</HoldUserFriendManager>
+	<HoldStatistics>1</HoldStatistics>
+	<HoldGroupManager>1</HoldGroupManager>
+	<HoldProxyMonitorCount>5</HoldProxyMonitorCount>
+	<HoldProxyMonitorGroup>
+		652A10A5-BC4B-45A2-86F2-BC5F351385F4,
+		1D3561B1-EF50-4F0A-A0D4-4A90A7001A0A,
+		7F017EA6-4129-46A6-A9C4-879F61BE11ED,
+		07830F3C-408B-4369-BB72-6F78FA92B77A,
+		44414149-FD13-46BA-AFDD-EA0DCFD738DB,
+	</HoldProxyMonitorGroup>
+  </LpCenterConfig>
+  
+</Config>
