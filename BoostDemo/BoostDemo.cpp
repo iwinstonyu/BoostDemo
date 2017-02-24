@@ -14,19 +14,23 @@
 
 #include <boost/property_tree/xml_parser.hpp>
 
+#include <boost/property_tree/ini_parser.hpp>
 
 using namespace std;
 
 void TestLambda();
 void TestJson();
 void TestXML();
+void TestINI();
 
 
 int main()
 {
 	//TestJson();
 
-	TestXML();
+	//TestXML();
+
+	TestINI();
 
 	system("pause");
 }
@@ -79,6 +83,15 @@ void TestXML()
 	boost::property_tree::ptree ptData;
 	boost::property_tree::xml_parser::read_xml("center1.xml", ptData);
 
-	cout << ptData.get<string>("Config.CoreConfig.Net.InternalAddress") << endl;
+	cout << ptData.get<string>("Config.<xmlattr>.base") << endl;
 
+	cout << ptData.get<string>("Config.CoreConfig.Net.InternalAddress") << endl;
+}
+
+void TestINI()
+{
+	boost::property_tree::ptree ptData;
+	boost::property_tree::ini_parser::read_ini("CreatureInfo.ini", ptData);
+
+	cout << ptData.get<string>("10101.describe") << endl;
 }
