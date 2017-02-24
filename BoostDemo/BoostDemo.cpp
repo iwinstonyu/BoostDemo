@@ -42,6 +42,13 @@ void TestJson()
 	boost::property_tree::ptree ptData;
 	boost::property_tree::json_parser::read_json(ssData, ptData);
 
+	cout << "data: " << endl;
+	for (auto it = ptData.begin(); it != ptData.end(); ++it)
+	{
+		cout << it->first << ": " << it->second.get_value<string>() << endl;
+	}
+	cout << endl;
+
 	boost::property_tree::ptree ptStartMember = ptData.get_child("startMember");
 	cout << "startMember: ";
 	for (auto it = ptStartMember.begin(); it != ptStartMember.end(); ++it)
