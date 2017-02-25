@@ -252,4 +252,4 @@ paket-files/
 *.sln.iml
 
 # ignore boost lib, just unzip it by yourself
-boost_1_63_0
+boost_1_63_0/*
