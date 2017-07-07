@@ -152,6 +152,7 @@
   <ItemGroup>
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="AsioTimer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ASIO.cpp" />
