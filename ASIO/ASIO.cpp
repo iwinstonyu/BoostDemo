@@ -9,7 +9,9 @@
 
 int main()
 {
-	SyncTimer();
+	//SyncTimer();
+	//AsyncTimer();
+	Timer3();
 
 	system("pause");
     return 0;
