@@ -251,6 +251,7 @@ paket-files/
 .idea/
 *.sln.iml
 
-External/Lib/boost_1_63_0/
 boost_1_63_0/
 boost_1_63_0.7z
+External/boost_1_63_0/
+/boost×ÊÔ´
