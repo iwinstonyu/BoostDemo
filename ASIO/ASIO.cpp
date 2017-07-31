@@ -15,8 +15,6 @@ int main()
 	//AsyncTimer();
 	Timer3();
 
-	boost::asio::async_write()
-
 	system("pause");
     return 0;
 }
