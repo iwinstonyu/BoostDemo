@@ -27,6 +27,13 @@ void TestINI();
 
 int main()
 {
+	bool bValue = true;
+
+	scanf("%d", &bValue);
+
+	printf("%d\n", bValue);
+
+
 	TestJson();
 
 	TestXML();
