@@ -30,14 +30,19 @@ namespace wind {
 
 using boost::asio::ip::tcp;
 using namespace std;
+
 class Client {
 public:
-	Client(boost::asio::io_service& io_service, tcp::resolver::iterator endpoint_iterator)
+	Client(boost::asio::io_service& io_service, tcp::resolver::iterator endpoint_iterator, int clientId)
 		: io_service_(io_service)
 		, socket_(io_service)
+		, clientId_(clientId)
+		, online_(false)
 	{
 		ConnectServer(endpoint_iterator);
 	}
+
+	bool Online() { return online_; }
 
 	void SendMsg(const Msg& msg) {
 		io_service_.post([this, msg](){
@@ -50,6 +55,7 @@ public:
 
 private:
 	void ConnectServer(tcp::resolver::iterator endpoint_iterator) {
+		LogSave("Client[%d] conecting...", clientId_);
 		boost::asio::async_connect(socket_, endpoint_iterator, 
 			[this](boost::system::error_code ec, tcp::resolver::iterator) {
 			if (!ec) {
@@ -103,6 +109,8 @@ private:
 	tcp::socket socket_;
 	Msg inMsg_;
 	deque<Msg> outMsgs_;
+	int clientId_;
+	bool online_;
 };
 
 } // namespace wind

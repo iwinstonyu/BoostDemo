@@ -23,21 +23,36 @@
 
 #include <iostream>
 #include <string>
-#include <thread>
+#include <thread>	// this_thread
 #include <sstream> // ostringstream
+//#include <Windows.h>
 using namespace std;
 
 namespace wind {
 
+class MyCS {
+public:
+	MyCS() { InitializeCriticalSection(&cs_); }
+	void Lock() { EnterCriticalSection(&cs_); }
+	void Unlock() { LeaveCriticalSection(&cs_); }
+private:
+	CRITICAL_SECTION cs_;
+};
+
+MyCS gLogCS;
+
 void LogSave(const char* pszFormat, ...) {
+	gLogCS.Lock();
 	ostringstream oss;
 	oss << this_thread::get_id();
-	printf_s("[%s]: ", oss.str().c_str());
+	printf_s("[%s][%I64d]: ", oss.str().c_str(), time(nullptr));
 	va_list args;
 	va_start(args, pszFormat);
 	vprintf_s(pszFormat, args);
 	va_end(args);
 	printf_s("\n");
+	fflush(stdout);
+	gLogCS.Unlock();
 }
 
 } // namespace wind
