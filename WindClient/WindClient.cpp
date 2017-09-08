@@ -53,15 +53,15 @@ void ForkClient(int clientId) {
 // 		}
 		while (true) {
 			if (client.Online()) {
-				string content = RandContent();
-				Msg msg;
-				msg.SetBodyLength(content.length());
-				memcpy(msg.Body(), content.c_str(), msg.BodyLength());
-				msg.EncodeHeader();
-				client.SendMsg(msg);
+ 				string content = RandContent();
+ 				Msg msg;
+ 				msg.SetBodyLength(content.length());
+ 				memcpy(msg.Body(), content.c_str(), msg.BodyLength());
+ 				msg.EncodeHeader();
+ 				client.SendMsg(msg);
 			}
 
-			Sleep(rand() % 10 * 1000);
+			Sleep(rand() % 30 * 1000);
 		}
 
 	}

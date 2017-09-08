@@ -59,6 +59,7 @@ private:
 		boost::asio::async_connect(socket_, endpoint_iterator, 
 			[this](boost::system::error_code ec, tcp::resolver::iterator) {
 			if (!ec) {
+				online_ = true;
 				ReadMsgHeader();
 			}
 		});
