@@ -41,7 +41,10 @@ void ForkClient(int clientId) {
 		auto endpoint_iterator = resovler.resolve({ "localhost", "13579" });
 		Client client(io_service, endpoint_iterator, clientId);
 
-		std::thread t([&io_service]() { io_service.run(); });
+		io_service.run();
+
+// 		std::thread t([&io_service]() { io_service.run(); });
+// 		t.join();
 
 // 		char szContent[Msg::MAX_BODY_LENGTH + 1] = "";
 // 		while (std::cin.getline(szContent, Msg::MAX_BODY_LENGTH + 1)) {
@@ -51,18 +54,18 @@ void ForkClient(int clientId) {
 // 			msg.EncodeHeader();
 // 			client.SendMsg(msg);
 // 		}
-		while (true) {
-			if (client.Online()) {
- 				string content = RandContent();
- 				Msg msg;
- 				msg.SetBodyLength(content.length());
- 				memcpy(msg.Body(), content.c_str(), msg.BodyLength());
- 				msg.EncodeHeader();
- 				client.SendMsg(msg);
-			}
-
-			Sleep(rand() % 30 * 1000);
-		}
+// 		while (true) {
+// 			if (client.Online()) {
+//  				string content = RandContent();
+//  				Msg msg;
+//  				msg.SetBodyLength(content.length());
+//  				memcpy(msg.Body(), content.c_str(), msg.BodyLength());
+//  				msg.EncodeHeader();
+//  				client.SendMsg(msg);
+// 			}
+// 
+// 			Sleep(rand() % 30 * 1000);
+// 		}
 
 	}
 	catch (std::exception& e) {

@@ -145,6 +145,8 @@ public:
 		AcceptClient();
 	}
 
+	void DeliverMsg(const Msg& msg) { room_.DeliverMsg(msg); }
+
 private:
 	void AcceptClient() {
 		acceptor_.async_accept(socket_, [this](boost::system::error_code ec) {
