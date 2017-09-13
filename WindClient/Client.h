@@ -53,6 +53,11 @@ public:
 		});
 	}
 
+	void Logout() {
+		LogSave("Client[%d] logout...", clientId_);
+		io_service_.post([this]() { socket_.close(); });
+	}
+
 private:
 	void ConnectServer(tcp::resolver::iterator endpoint_iterator) {
 		LogSave("Client[%d] conecting...", clientId_);

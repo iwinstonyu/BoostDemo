@@ -42,6 +42,7 @@ void ForkClient(int clientId) {
 		Client client(io_service, endpoint_iterator, clientId);
 
 		std::thread t([&io_service]() { io_service.run(); });
+		t.join();
 
 // 		char szContent[Msg::MAX_BODY_LENGTH + 1] = "";
 // 		while (std::cin.getline(szContent, Msg::MAX_BODY_LENGTH + 1)) {
@@ -51,19 +52,25 @@ void ForkClient(int clientId) {
 // 			msg.EncodeHeader();
 // 			client.SendMsg(msg);
 // 		}
-		while (true) {
-			if (client.Online()) {
- 				string content = RandContent();
- 				Msg msg;
- 				msg.SetBodyLength(content.length());
- 				memcpy(msg.Body(), content.c_str(), msg.BodyLength());
- 				msg.EncodeHeader();
- 				client.SendMsg(msg);
-			}
-
-			Sleep(rand() % 30 * 1000);
-		}
-
+// 		while (true) {
+// // 			if (client.Online()) {
+// //  				string content = RandContent();
+// //  				Msg msg;
+// //  				msg.SetBodyLength(content.length());
+// //  				memcpy(msg.Body(), content.c_str(), msg.BodyLength());
+// //  				msg.EncodeHeader();
+// //  				client.SendMsg(msg);
+// // 			}
+// // 
+// // 			Sleep(rand() % 30 * 1000);
+// 
+// 			if (client.Online()) {
+// 				Sleep(5000);
+// 				client.Logout();
+// 				t.join();
+// 				break;
+// 			}
+// 		}
 	}
 	catch (std::exception& e) {
 		cout << "Exception: " << e.what() << endl;
@@ -87,8 +94,8 @@ int main()
 	}
 
 	vector<thread> clients;
-	clients.reserve(100);
-	for (int i = 0; i < 2; ++i) {
+	clients.reserve(500);
+	for (int i = 0; i < 1; ++i) {
 		clients.emplace_back(ForkClient, i);
 	}
 

@@ -84,6 +84,10 @@ public:
 	{
 	}
 
+	~chat_session() {
+		socket_.close();
+	}
+
 	void start()
 	{
 		room_.join(shared_from_this());

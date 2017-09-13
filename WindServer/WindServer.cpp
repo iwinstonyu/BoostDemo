@@ -15,6 +15,8 @@ int main()
 		tcp::endpoint endpoint(tcp::v4(), 13579);
 		Server server(io_service, endpoint);
 
+		thread t([&server]() { Sleep(5000); LogSave("Close server..."); server.Close(); });
+
 		io_service.run();
 	}
 	catch (std::exception& e) {

@@ -37,6 +37,7 @@ using boost::asio::ip::tcp;
 class Participant {
 public:
 	virtual ~Participant() {}
+	virtual void Logout() = 0;
 	virtual void DeliverMsg(const Msg& msg) = 0;
 };
 typedef shared_ptr<Participant> ParticipantRef;
@@ -49,6 +50,14 @@ public:
 
 	void Leave(ParticipantRef participant) {
 		participants_.erase(participant);
+	}
+
+	void LeaveAll() {
+		for_each(participants_.begin(), participants_.end(), [](ParticipantRef participant) {
+			participant->Logout();
+		});
+
+		participants_.clear();
 	}
 
 	void DeliverMsg(const Msg& msg) {
@@ -70,6 +79,16 @@ public:
 		: socket_(std::move(socket))
 		, room_(room)
 	{
+	}
+
+	~ChatSession() {
+		LogSave("Destroy chat session...");
+		//socket_.close();
+	}
+
+	void Logout() {
+		LogSave("Logout chat session...");
+		socket_.close();
 	}
 
 	void DeliverMsg(const Msg& msg) {
@@ -94,6 +113,7 @@ private:
 				ReadMsgBody();
 			}
 			else {
+				LogSave("Client log out");
 				room_.Leave(shared_from_this());
 			}
 		});
@@ -143,6 +163,10 @@ public:
 	{
 		LogSave("Server start...");
 		AcceptClient();
+	}
+
+	void Close() {
+		room_.LeaveAll();
 	}
 
 private:
