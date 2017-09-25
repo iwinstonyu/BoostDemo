@@ -41,8 +41,11 @@ void ForkClient(int clientId) {
 		auto endpoint_iterator = resovler.resolve({ "localhost", "13579" });
 		Client client(io_service, endpoint_iterator, clientId);
 
-		std::thread t([&io_service]() { io_service.run(); });
+		io_service.run();
 		t.join();
+
+// 		std::thread t([&io_service]() { io_service.run(); });
+// 		t.join();
 
 // 		char szContent[Msg::MAX_BODY_LENGTH + 1] = "";
 // 		while (std::cin.getline(szContent, Msg::MAX_BODY_LENGTH + 1)) {

@@ -165,6 +165,8 @@ public:
 		AcceptClient();
 	}
 
+	void DeliverMsg(const Msg& msg) { room_.DeliverMsg(msg); }
+
 	void Close() {
 		room_.LeaveAll();
 	}
