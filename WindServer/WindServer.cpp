@@ -36,7 +36,7 @@ int main()
 			}
 		});
 
-		thread t([&server]() { Sleep(5000); LogSave("Close server..."); server.Close(); });
+		//thread t([&server]() { Sleep(5000); LogSave("Close server..."); server.Close(); });
 
 		io_service.run();
 	}

@@ -42,7 +42,6 @@ void ForkClient(int clientId) {
 		Client client(io_service, endpoint_iterator, clientId);
 
 		io_service.run();
-		t.join();
 
 // 		std::thread t([&io_service]() { io_service.run(); });
 // 		t.join();
@@ -55,6 +54,7 @@ void ForkClient(int clientId) {
 // 			msg.EncodeHeader();
 // 			client.SendMsg(msg);
 // 		}
+
 // 		while (true) {
 // // 			if (client.Online()) {
 // //  				string content = RandContent();

@@ -88,12 +88,12 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)External\boost_1_63_0\Include;$(SolutionDir)Base</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\ExternalUtil\boost_1_63_0\Include;$(SolutionDir)Base</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)External\boost_1_63_0\Lib\x86</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\ExternalUtil\boost_1_63_0\Lib\x86</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
