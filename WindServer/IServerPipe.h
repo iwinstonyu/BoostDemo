@@ -10,6 +10,7 @@
 //
 
 #pragma once
+#include <string>
 
 namespace wind {
 
@@ -31,7 +32,7 @@ public:
 
 	virtual void OnCreate(uint32, IPInfo) = 0;
 	virtual void OnMsg(uint32, const char*, unsigned short) = 0;
-	virtual void OnError(uint32, int, const char*) = 0;
+	virtual void OnError(uint32, int value, std::string msg) = 0;
 	virtual void OnDestroy(uint32) = 0;
 	virtual void OnFlashDisconnect(uint32) = 0;
 	virtual void OnFlashReconnect(uint32, IPInfo) = 0;

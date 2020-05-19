@@ -58,9 +58,9 @@ typedef std::shared_ptr<Client> ClientPtr;
 class Proxy : public wind::IServerPipe
 {
 public:
-	Proxy() 
+	Proxy(int port) 
 	{
-		endPointPtr_ = new tcp::endpoint(tcp::v4(), 13579);
+		endPointPtr_ = new tcp::endpoint(tcp::v4(), port);
 		serverPtr_ = new Server(*endPointPtr_, this);
 		serverPtr_->Start();
 	}
@@ -95,6 +95,22 @@ public:
 						scClientMap_.insert({ inMsg.scId_, make_shared<Client>(inMsg.scId_) });
 
 						LogSave("Create socket: [%d]", inMsg.scId_);
+					}
+					break;
+					case EMsgType::SocketError:
+					{
+						if (!scClientMap_.count(inMsg.scId_)) {
+							LogSave("Fail find socket: [%d]", inMsg.scId_);
+							continue;
+						}
+						auto clientPtr = scClientMap_.at(inMsg.scId_);
+
+						JValue valLogout;
+						JMsgItemPtr msgItemLogoutPtr = make_shared<JMsgItem>(inMsg.scId_, EMsgType::Logout, valLogout);
+						msgItemLogoutPtr->userId_ = clientPtr->userId_;
+						userMsgs_.Write(msgItemLogoutPtr);
+
+						LogSave("Socket error: [%d][%s]", inMsg.scId_, val["msg"].asCString());
 					}
 					break;
 					default:
@@ -173,9 +189,13 @@ public:
 		inMsgs_.Write(make_shared<JMsgItem>(scId, static_cast<EMsgType>(msgItem.head_.msgType_), val));
 	}
 
-	virtual void OnError(uint32 scId, int, const char*)
+	virtual void OnError(uint32 scId, int value, std::string msg)
 	{
-
+		JValue val;
+		val["scId"] = scId;
+		val["value"] = value;
+		val["msg"] = msg;
+		inMsgs_.Write(make_shared<JMsgItem>(scId, EMsgType::SocketError, val));
 	}
 
 	virtual void OnDestroy(uint32 scId)

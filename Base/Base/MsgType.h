@@ -40,6 +40,9 @@ enum class EMsgType
 	Reset,
 	LoginAck,
 	TalkAck,
+
+	S2S = 3000,
+	Logout,
 };
 
 enum class ELoginAck

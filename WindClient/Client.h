@@ -34,12 +34,12 @@ using namespace std;
 
 class Client {
 public:
-	Client(IClientPipe* pipePtr)
+	Client(IClientPipe* pipePtr, string ip, int port)
 		: socket_(ioService_)
 		, pipePtr_(pipePtr)
 	{
 		tcp::resolver resovler(ioService_);
-		auto endpointIterator = resovler.resolve({ "localhost", "13579" });
+		auto endpointIterator = resovler.resolve({ ip, std::to_string(port) });
 
 		ConnectServer(endpointIterator);
 	}

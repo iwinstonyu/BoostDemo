@@ -55,6 +55,11 @@ public:
 		LoginAck();
 	}
 
+	void OnLogout()
+	{
+		LogSave("Logout user: [%d]", userId_);
+	}
+
 	void OnMsg(EMsgType msgType, JValue& val)
 	{
 		switch (msgType) {
@@ -126,6 +131,20 @@ public:
 						}
 					}
 					break;
+					case EMsgType::Logout:
+					{
+						if (!msgItem.userId_)
+							continue;
+
+						if (!users_.count(msgItem.userId_))
+							continue;
+						auto userPtr = users_.at(msgItem.userId_);
+
+						userPtr->OnLogout();
+
+						users_.erase(msgItem.userId_);
+					}
+					break;
 					default:
 					{
 						if (!msgItem.userId_)
@@ -151,7 +170,12 @@ public:
 		proxyPtr_->SendMsg(scId, msgType, val);
 	}
 
-private:
+	void LogoutUser(uint32 userId)
+	{
+		users_.erase(userId);
+	}
+
+private: 
 	map<uint32, UserPtr> users_;
 	Proxy* proxyPtr_;
 	std::thread runThr_;

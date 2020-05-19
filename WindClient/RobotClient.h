@@ -26,10 +26,10 @@ typedef std::shared_ptr<JMsgItem> JMsgItemPtr;
 class RobotClient : public IClientPipe
 {
 public:
-	RobotClient(uint32 userId)
+	RobotClient(uint32 userId, string ip, int port)
 		: userId_(userId)
 	{
-		clientPtr_ = new Client(this);
+		clientPtr_ = new Client(this, ip, port);
 		clientPtr_->Start();
 	}
 

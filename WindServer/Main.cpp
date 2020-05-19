@@ -9,10 +9,14 @@
 using boost::asio::ip::tcp;
 using namespace wind;
 
-int main()
+int main(int argc, char* argv[])
 {
+	if (argc < 2)
+		return 1;
+	int port = atoi(argv[1]);
+
 	try {
-		Proxy proxy;
+		Proxy proxy(port);
 		proxy.Start();
 
 		UserMgr userMgr(&proxy);

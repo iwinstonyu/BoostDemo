@@ -83,7 +83,7 @@ private:
 				ReadMsgBody();
 			}
 			else {
-				pipePtr_->OnError(scId_, ec.value(), "Fail read msg header");
+				pipePtr_->OnError(scId_, ec.value(), ec.message());
 			}
 		});
 	}
@@ -98,7 +98,7 @@ private:
 				ReadMsgHeader();
 			}
 			else {
-				pipePtr_->OnError(scId_, ec.value(), "Fail read msg body");
+				pipePtr_->OnError(scId_, ec.value(), ec.message());
 			}
 		});
 	}
@@ -114,7 +114,7 @@ private:
 					WriteMsg();
 			}
 			else {
-				pipePtr_->OnError(scId_, ec.value(), "Fail write msg");
+				pipePtr_->OnError(scId_, ec.value(), ec.message());
 			}
 		});
 	}

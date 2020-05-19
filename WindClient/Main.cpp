@@ -30,12 +30,12 @@ string RandContent() {
 	return gContents[rand() % gContentSize];
 }
 
-void ForkClient(int clientId) {
+void ForkClient(int clientId, string ip, int port) {
 	// 每个线程初始化种子
 	srand(static_cast<int>(::time(nullptr)) + clientId);
 
 	try {
-		RobotClient robot(clientId);
+		RobotClient robot(clientId, ip, port);
 		robot.Start();
 
 		char c;
@@ -86,7 +86,7 @@ void ForkClient(int clientId) {
 	}
 }
 
-int main()
+int main(int argc, char* argv[])
 {
 // 	ifstream ifs("Resource/sgyy.txt");
 // 	if (ifs) {
@@ -102,10 +102,15 @@ int main()
 // 		ifs.close();
 // 	}
 
+	if (argc < 3)
+		return 1;
+	string ip(argv[1]);
+	int port = atoi(argv[2]);
+
 	vector<thread> clients;
 	clients.reserve(500);
 	for (int i = 1; i <= 1; ++i) {
-		clients.emplace_back(ForkClient, i);
+		clients.emplace_back(ForkClient, i, ip, port);
 	}
 
 // 	map<int, ostringstream> ossMap;
