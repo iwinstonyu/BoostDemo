@@ -25,6 +25,7 @@
 #include <deque>
 #include <Base/Msg.h>
 #include <Base/Util.h>
+#include "IClientPipe.h"
 
 namespace wind {
 
@@ -33,19 +34,33 @@ using namespace std;
 
 class Client {
 public:
-	Client(boost::asio::io_service& io_service, tcp::resolver::iterator endpoint_iterator, int clientId)
-		: io_service_(io_service)
-		, socket_(io_service)
-		, clientId_(clientId)
-		, online_(false)
+	Client(IClientPipe* pipePtr)
+		: socket_(ioService_)
+		, pipePtr_(pipePtr)
 	{
-		ConnectServer(endpoint_iterator);
+		tcp::resolver resovler(ioService_);
+		auto endpointIterator = resovler.resolve({ "localhost", "13579" });
+
+		ConnectServer(endpointIterator);
 	}
 
-	bool Online() { return online_; }
+	virtual ~Client() 
+	{
+	}
 
-	void SendMsg(const Msg& msg) {
-		io_service_.post([this, msg](){
+	void Start()
+	{
+		serviceThr_ = std::thread([this]()->void {
+			ioService_.run();
+		});
+	}
+
+	void SendMsg(const string& msgStr) 
+	{
+		ioService_.post([this, msgStr]() {
+			Msg msg;
+			msg.Init(msgStr);
+
 			outMsgs_.push_back(msg);
 			if (outMsgs_.size() == 1) {
 				WriteMsg();
@@ -53,24 +68,39 @@ public:
 		});
 	}
 
-	void Logout() {
-		LogSave("Client[%d] logout...", clientId_);
-		io_service_.post([this]() { socket_.close(); });
+	void SendMsg(const char* msg, size_t len)
+	{
+		string msgStr(msg, len);
+		SendMsg(msgStr);
+	}
+
+	void Close() 
+	{
+		LogSave("Close client");
+		ioService_.post([this]() { socket_.close(); });
+		ioService_.stop();
+		serviceThr_.join();
 	}
 
 private:
-	void ConnectServer(tcp::resolver::iterator endpoint_iterator) {
-		LogSave("Client[%d] conecting...", clientId_);
-		boost::asio::async_connect(socket_, endpoint_iterator, 
+	void ConnectServer(tcp::resolver::iterator endpointIterator) 
+	{
+		LogSave("Client connecting");
+		boost::asio::async_connect(socket_, endpointIterator,
 			[this](boost::system::error_code ec, tcp::resolver::iterator) {
 			if (!ec) {
-				online_ = true;
+				pipePtr_->OnConnect();
+
 				ReadMsgHeader();
+			}
+			else {
+				pipePtr_->OnError(ec.value(), "Fail connect server");
 			}
 		});
 	}
 
-	void ReadMsgHeader() {
+	void ReadMsgHeader() 
+	{
 		inMsg_.Clear();
 		boost::asio::async_read(socket_, boost::asio::buffer(inMsg_.Data(), Msg::HEADER_LENGTH),
 			[this](boost::system::error_code ec, size_t length) {
@@ -78,25 +108,28 @@ private:
 				ReadMsgBody();
 			}
 			else {
-				socket_.close();
+				pipePtr_->OnError(ec.value(), "Fail read msg header");
 			}
 		});
 	}
 
-	void ReadMsgBody() {
+	void ReadMsgBody() 
+	{
 		boost::asio::async_read(socket_, boost::asio::buffer(inMsg_.Body(), inMsg_.BodyLength()),
 			[this](boost::system::error_code ec, size_t length) {
 			if (!ec) {
-				LogSave("%s", inMsg_.Body());
+				pipePtr_->OnMsg(inMsg_.Body(), inMsg_.BodyLength());
+
 				ReadMsgHeader();
 			}
 			else {
-				socket_.close();
+				pipePtr_->OnError(ec.value(), "Fail read msg body");
 			}
 		});
 	}
 
-	void WriteMsg() {
+	void WriteMsg() 
+	{
 		boost::asio::async_write(socket_, boost::asio::buffer(outMsgs_.front().Data(), outMsgs_.front().Length()),
 			[this](boost::system::error_code ec, size_t length) {
 			if (!ec) {
@@ -105,18 +138,19 @@ private:
 					WriteMsg();
 			}
 			else {
-				socket_.close();
+				pipePtr_->OnError(ec.value(), "Fail write msg");
 			}
 		});
 	}
 
 private:
-	boost::asio::io_service& io_service_;
+	boost::asio::io_service ioService_;
 	tcp::socket socket_;
+	IClientPipe* pipePtr_ = nullptr;
 	Msg inMsg_;
 	deque<Msg> outMsgs_;
-	int clientId_;
-	bool online_;
+	std::thread serviceThr_;
 };
+typedef shared_ptr<Client> ClientPtr;
 
 } // namespace wind

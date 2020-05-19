@@ -20,26 +20,41 @@
 //
 
 #pragma once
+#include <string>
 
 namespace wind {
 
-class Msg {
-public:
-	enum { HEADER_LENGTH = 4 };
-	enum { MAX_BODY_LENGTH = 512 };
+typedef unsigned int uint32;
+typedef unsigned short uint16;
 
-	Msg() : bodyLength_(0) { memset(data_, 0, sizeof(data_)); }
+class Msg 
+{
+public:
+	static const uint16 HEADER_LENGTH = 4;
+	static const uint16 MAX_BODY_LENGTH = 32768;
+
+	Msg() {}
 
 	const char* Data() const { return data_; }
 	char* Data() { return data_; }
-	size_t Length() { return HEADER_LENGTH + bodyLength_; }
+	uint16 Length() { return HEADER_LENGTH + bodyLength_; }
 	const char* Body() const { return data_ + HEADER_LENGTH; }
 	char* Body() { return data_ + HEADER_LENGTH; }
-	size_t BodyLength() { return bodyLength_; }
-	void SetBodyLength(size_t newLength) { bodyLength_ = std::min(newLength, size_t(MAX_BODY_LENGTH)); }
-	void Clear() { memset(data_, 0, sizeof(data_)); }
+	uint16 BodyLength() { return bodyLength_; }
+	void SetBodyLength(uint16 length) { bodyLength_ = length; }
+	void Clear() { bodyLength_ = 0;  memset(data_, 0, sizeof(data_)); }
 
-	bool DecodeHeader() {
+	bool Init(const std::string& msg)
+	{
+		bodyLength_ = static_cast<uint16>(msg.length());
+		memcpy(data_ + HEADER_LENGTH, msg.c_str(), msg.length());
+		EncodeHeader();
+
+		return true;
+	}
+
+	bool DecodeHeader() 
+	{
 		char header[HEADER_LENGTH + 1] = "";
 		strncat_s(header, data_, HEADER_LENGTH);
 		bodyLength_ = atoi(header);
@@ -50,15 +65,16 @@ public:
 		return true;
 	}
 
-	void EncodeHeader() {
+	void EncodeHeader() 
+	{
 		char header[HEADER_LENGTH + 1] = "";
 		sprintf_s(header, HEADER_LENGTH + 1, "%4d", static_cast<int>(bodyLength_));
 		memcpy(data_, header, HEADER_LENGTH);
 	}
 
 private:
-	char data_[HEADER_LENGTH + MAX_BODY_LENGTH];
-	size_t bodyLength_;
+	uint16 bodyLength_ = 0;
+	char data_[HEADER_LENGTH + MAX_BODY_LENGTH] = "";
 };
 
 } // namespace wind

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.1062
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoostDemo", "BoostDemo\BoostDemo.vcxproj", "{7C71EE53-2772-4608-82AC-B192C59C3ABA}"
 EndProject
@@ -14,6 +14,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WindServer", "WindServer\WindServer.vcxproj", "{B57656B0-B7FF-4BD6-861A-5668B048CD1B}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WindClient", "WindClient\WindClient.vcxproj", "{C0003057-C6FB-4D82-854D-85D652AD7F6F}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoostBeast", "BoostBeast\BoostBeast.vcxproj", "{15E1211B-0DA8-4BD4-8925-D5415F488DFB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -71,8 +73,19 @@ Global
 		{C0003057-C6FB-4D82-854D-85D652AD7F6F}.Release|x64.Build.0 = Release|x64
 		{C0003057-C6FB-4D82-854D-85D652AD7F6F}.Release|x86.ActiveCfg = Release|Win32
 		{C0003057-C6FB-4D82-854D-85D652AD7F6F}.Release|x86.Build.0 = Release|Win32
+		{15E1211B-0DA8-4BD4-8925-D5415F488DFB}.Debug|x64.ActiveCfg = Debug|x64
+		{15E1211B-0DA8-4BD4-8925-D5415F488DFB}.Debug|x64.Build.0 = Debug|x64
+		{15E1211B-0DA8-4BD4-8925-D5415F488DFB}.Debug|x86.ActiveCfg = Debug|Win32
+		{15E1211B-0DA8-4BD4-8925-D5415F488DFB}.Debug|x86.Build.0 = Debug|Win32
+		{15E1211B-0DA8-4BD4-8925-D5415F488DFB}.Release|x64.ActiveCfg = Release|x64
+		{15E1211B-0DA8-4BD4-8925-D5415F488DFB}.Release|x64.Build.0 = Release|x64
+		{15E1211B-0DA8-4BD4-8925-D5415F488DFB}.Release|x86.ActiveCfg = Release|Win32
+		{15E1211B-0DA8-4BD4-8925-D5415F488DFB}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D4A76836-7BD1-4299-97AF-29EE6429602B}
 	EndGlobalSection
 EndGlobal

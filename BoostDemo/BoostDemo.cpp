@@ -13,10 +13,10 @@
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
-
 #include <boost/property_tree/xml_parser.hpp>
-
 #include <boost/property_tree/ini_parser.hpp>
+
+#include <boost/regex.hpp>
 
 using namespace std;
 
@@ -27,6 +27,8 @@ void TestINI();
 
 int main()
 {
+	boost::regex re("");
+
 	bool bValue = true;
 
 	scanf("%d", &bValue);

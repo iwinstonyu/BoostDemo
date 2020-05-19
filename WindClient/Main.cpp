@@ -1,7 +1,6 @@
 // WindClient.cpp : 定义控制台应用程序的入口点。
 //
 
-#include "stdafx.h"
 #include "Client.h"
 
 #include <iostream>
@@ -9,6 +8,7 @@
 #include <thread>
 #include <fstream>	// ifstream
 #include <sstream>
+#include "RobotClient.h"
 
 using namespace std;
 using namespace wind;
@@ -35,13 +35,19 @@ void ForkClient(int clientId) {
 	srand(static_cast<int>(::time(nullptr)) + clientId);
 
 	try {
-		boost::asio::io_service io_service;
+		RobotClient robot(clientId);
+		robot.Start();
 
-		tcp::resolver resovler(io_service);
-		auto endpoint_iterator = resovler.resolve({ "localhost", "13579" });
-		Client client(io_service, endpoint_iterator, clientId);
+		char c;
+		cin >> c;
 
-		io_service.run();
+// 		boost::asio::io_service io_service;
+// 
+// 		tcp::resolver resovler(io_service);
+// 		auto endpoint_iterator = resovler.resolve({ "localhost", "13579" });
+// 		Client client(io_service, endpoint_iterator, clientId);
+// 
+// 		io_service.run();
 
 // 		std::thread t([&io_service]() { io_service.run(); });
 // 		t.join();
@@ -82,23 +88,23 @@ void ForkClient(int clientId) {
 
 int main()
 {
-	ifstream ifs("Resource/sgyy.txt");
-	if (ifs) {
-		int lineno = 0;
-		string content;
-		while (!ifs.eof()) {
-			getline(ifs, content);
-			content = content.substr(0, 64);
-			if( !content.empty())
-				gContents[lineno++] = content;
-		}
-		gContentSize = gContents.size();
-		ifs.close();
-	}
+// 	ifstream ifs("Resource/sgyy.txt");
+// 	if (ifs) {
+// 		int lineno = 0;
+// 		string content;
+// 		while (!ifs.eof()) {
+// 			getline(ifs, content);
+// 			content = content.substr(0, 64);
+// 			if( !content.empty())
+// 				gContents[lineno++] = content;
+// 		}
+// 		gContentSize = gContents.size();
+// 		ifs.close();
+// 	}
 
 	vector<thread> clients;
 	clients.reserve(500);
-	for (int i = 0; i < 1; ++i) {
+	for (int i = 1; i <= 1; ++i) {
 		clients.emplace_back(ForkClient, i);
 	}
 

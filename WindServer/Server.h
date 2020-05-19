@@ -28,70 +28,40 @@
 #include <thread>
 #include <Base/Util.h>
 #include <Base/Msg.h>
+#include "IServerPipe.h"
 
 namespace wind {
 
 using namespace std;
 using boost::asio::ip::tcp;
 
-class Participant {
-public:
-	virtual ~Participant() {}
-	virtual void Logout() = 0;
-	virtual void DeliverMsg(const Msg& msg) = 0;
-};
-typedef shared_ptr<Participant> ParticipantRef;
-
-class Room {
-public:
-	void Join(ParticipantRef participant) {
-		participants_.insert(participant);
-	}
-
-	void Leave(ParticipantRef participant) {
-		participants_.erase(participant);
-	}
-
-	void LeaveAll() {
-		for_each(participants_.begin(), participants_.end(), [](ParticipantRef participant) {
-			participant->Logout();
-		});
-
-		participants_.clear();
-	}
-
-	void DeliverMsg(const Msg& msg) {
-		for (auto participant : participants_) {
-			participant->DeliverMsg(msg);
-		}
-	}
-
-private:
-	std::set<ParticipantRef> participants_;
-};
-
-class ChatSession 
-	: public Participant
-	, public std::enable_shared_from_this<ChatSession> 
+class Session : public std::enable_shared_from_this<Session>
 {
 public:
-	ChatSession(tcp::socket socket, Room& room)
-		: socket_(std::move(socket))
-		, room_(room)
+	Session(uint32 scId, tcp::socket socket, IServerPipe* pipePtr)
+		: scId_(scId)
+		, socket_(std::move(socket))
+		, pipePtr_(pipePtr)
 	{
+		IPInfo info;
+		strncpy_s(info.ip_, socket_.remote_endpoint().address().to_string().c_str(), socket_.remote_endpoint().address().to_string().length());
+		info.port_ = socket_.remote_endpoint().port();
+		pipePtr_->OnCreate(scId_, info);
 	}
 
-	~ChatSession() {
-		LogSave("Destroy chat session...");
-		//socket_.close();
-	}
-
-	void Logout() {
-		LogSave("Logout chat session...");
+	~Session() 
+	{
 		socket_.close();
+		pipePtr_->OnDestroy(scId_);
 	}
 
-	void DeliverMsg(const Msg& msg) {
+	uint32 ScId() { return scId_; }
+
+	void DeliverMsg(const string& msgStr)
+	{
+		Msg msg;
+		msg.Init(msgStr);
+
 		outMsgs_.push_back(msg);
 		if (outMsgs_.size() == 1) {
 			WriteMsg();
@@ -99,12 +69,12 @@ public:
 	}
 
 	void Start() {
-		room_.Join(shared_from_this());
 		ReadMsgHeader();
 	}
 
 private:
-	void ReadMsgHeader() {
+	void ReadMsgHeader() 
+	{
 		inMsg_.Clear();
 		auto self(shared_from_this());
 		boost::asio::async_read(socket_, boost::asio::buffer(inMsg_.Data(), Msg::HEADER_LENGTH),
@@ -113,29 +83,30 @@ private:
 				ReadMsgBody();
 			}
 			else {
-				LogSave("Client log out");
-				room_.Leave(shared_from_this());
+				pipePtr_->OnError(scId_, ec.value(), "Fail read msg header");
 			}
 		});
 	}
 
-	void ReadMsgBody() {
+	void ReadMsgBody() 
+	{
 		auto self(shared_from_this());
 		boost::asio::async_read(socket_, boost::asio::buffer(inMsg_.Body(), inMsg_.BodyLength()),
 			[this, self](boost::system::error_code ec, size_t length) {
 			if (!ec) {
-				room_.DeliverMsg(inMsg_);
+				pipePtr_->OnMsg(scId_, inMsg_.Body(), inMsg_.BodyLength());
 				ReadMsgHeader();
 			}
 			else {
-				room_.Leave(shared_from_this());
+				pipePtr_->OnError(scId_, ec.value(), "Fail read msg body");
 			}
 		});
 	}
 
-	void WriteMsg() {
+	void WriteMsg()
+	{
 		auto self(shared_from_this());
-		boost::asio::async_write(socket_, boost::asio::buffer(outMsgs_.front().Data(), outMsgs_.front().Length()), 
+		boost::asio::async_write(socket_, boost::asio::buffer(outMsgs_.front().Data(), outMsgs_.front().Length()),
 			[this, self](boost::system::error_code ec, size_t length) {
 			if (!ec) {
 				outMsgs_.pop_front();
@@ -143,51 +114,135 @@ private:
 					WriteMsg();
 			}
 			else {
-				room_.Leave(shared_from_this());
+				pipePtr_->OnError(scId_, ec.value(), "Fail write msg");
 			}
 		});
 	}
 
 private:
 	tcp::socket socket_;
-	Room& room_;
 	Msg inMsg_;
 	deque<Msg> outMsgs_;
+	uint32 scId_ = 0;
+	IServerPipe* pipePtr_ = nullptr;
 };
+typedef shared_ptr<Session> SessionPtr;
 
-class Server {
+class SessionPool
+{
 public:
-	Server(boost::asio::io_service& io_service, const tcp::endpoint& endpoint)
-	: acceptor_(io_service, endpoint)
-	, socket_(io_service)
+	SessionPool() 
 	{
-		LogSave("Server start...");
-		AcceptClient();
+
 	}
 
-	void DeliverMsg(const Msg& msg) { room_.DeliverMsg(msg); }
+	void Join(SessionPtr sessionPtr) 
+	{
+		sessions_.insert({ sessionPtr->ScId(), sessionPtr });
+	}
 
-	void Close() {
-		room_.LeaveAll();
+	void Leave(uint32 scId) 
+	{
+		if (!sessions_.count(scId)) {
+			LogSave("Fail leave no socket id: [%d]", scId);
+			return;
+		}
+
+		sessions_.erase(scId);
+	}
+
+	void LeaveAll() 
+	{
+		sessions_.clear();
+	}
+
+	void DeliverMsg(uint32 scId, const string& msg) 
+	{
+		if (!sessions_.count(scId)) {
+			LogSave("Fail deliver msg no socket id: [%d]", scId);
+			return;
+		}
+
+		sessions_.at(scId)->DeliverMsg(msg);
 	}
 
 private:
-	void AcceptClient() {
+	std::map<uint32, SessionPtr> sessions_;
+};
+
+class Server 
+{
+public:
+	Server(const tcp::endpoint& endpoint, IServerPipe* pipePtr)
+		: acceptor_(ioService_, endpoint)
+		, socket_(ioService_)
+		, pipePtr_(pipePtr)
+	{
+		LogSave("Start server");
+		AcceptClient();
+	}
+
+	void DeliverMsg(uint32 scId, const string& msg)
+	{
+		ioService_.post([this, scId, msg]()->void {
+			pool_.DeliverMsg(scId, msg);
+		});
+	}
+
+	void DeliverMsg(uint32 scId, const char* msg, size_t len) 
+	{ 
+		string msgStr(msg, len);
+		DeliverMsg(scId, msgStr);
+	}
+
+	void CloseSocket(uint32 scId)
+	{
+		ioService_.post([this, scId]()->void {
+			pool_.Leave(scId);
+		});
+	}
+
+	void Start()
+	{
+		serviceThr_ = std::thread([this]()->void { 
+			LogSave("Run io service");
+			ioService_.run(); 
+		});
+	}
+
+	void Stop()
+	{
+		ioService_.post([this]()->void {
+			pool_.LeaveAll();
+		});
+		Sleep(1000);
+		ioService_.stop();
+	}
+
+private:
+	void AcceptClient() 
+	{
 		acceptor_.async_accept(socket_, [this](boost::system::error_code ec) {
 			if (!ec) {
-				LogSave("Client connect...");
-				std::make_shared<ChatSession>(std::move(socket_), room_)->Start();
+				LogSave("Accept socket: [%s:%d]", socket_.remote_endpoint().address().to_string().c_str(), socket_.remote_endpoint().port());
+				auto sessionPtr = std::make_shared<Session>(++socketId_, std::move(socket_), pipePtr_);
+				pool_.Join(sessionPtr);
+				sessionPtr->Start();
 			}
 			else {
-				
+				LogSave("Accept socket error: %d", ec.value());
 			}
 			AcceptClient();
 		});
 	}
 
+	boost::asio::io_service ioService_;
 	tcp::acceptor acceptor_;
 	tcp::socket socket_;
-	Room room_;
+	SessionPool pool_;
+	uint32 socketId_ = 0;
+	IServerPipe* pipePtr_ = nullptr;
+	std::thread serviceThr_;
 };
 
 } // namespace wind
