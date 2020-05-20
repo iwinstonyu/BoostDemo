@@ -55,4 +55,6 @@ void LogSave(const char* pszFormat, ...) {
 	gLogCS.Unlock();
 }
 
+#define WD_IF(x)  if( (x) ? (LogSave("[%s][%d][%s]", __FILE__, __LINE__, #x ), 1) : 0 )
+
 } // namespace wind

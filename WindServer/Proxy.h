@@ -87,7 +87,7 @@ public:
 					switch (inMsg.msgType_) {
 					case EMsgType::CreateSocket:
 					{
-						if (scClientMap_.count(inMsg.scId_)) {
+						WD_IF (scClientMap_.count(inMsg.scId_)) {
 							LogSave("Duplicate socket id on create: [%d]", inMsg.scId_);
 							continue;
 						}
@@ -99,7 +99,7 @@ public:
 					break;
 					case EMsgType::SocketError:
 					{
-						if (!scClientMap_.count(inMsg.scId_)) {
+						WD_IF (!scClientMap_.count(inMsg.scId_)) {
 							LogSave("Fail find socket: [%d]", inMsg.scId_);
 							continue;
 						}
@@ -115,7 +115,7 @@ public:
 					break;
 					default:
 					{
-						if (!scClientMap_.count(inMsg.scId_)) {
+						WD_IF (!scClientMap_.count(inMsg.scId_)) {
 							continue;
 						}
 						auto clientPtr = scClientMap_.at(inMsg.scId_);
@@ -132,7 +132,7 @@ public:
 					auto& jMsgItem = *jMsgItemPtr;
 					auto& val = jMsgItem.val_;
 
-					if (!scClientMap_.count(jMsgItem.scId_)) {
+					WD_IF (!scClientMap_.count(jMsgItem.scId_)) {
 						continue;
 					}
 					auto clientPtr = scClientMap_.at(jMsgItem.scId_);
@@ -156,7 +156,7 @@ public:
 					}
 
 					MsgItem msgItem;
-					if (!msgItem.Init(jMsgItem.scId_, jMsgItem.msgType_, val))
+					WD_IF (!msgItem.Init(jMsgItem.scId_, jMsgItem.msgType_, val))
 						continue;
 					serverPtr_->DeliverMsg(jMsgItem.scId_, msgItem.GetBuff(), msgItem.GetBuffSize());
 				}
@@ -176,14 +176,14 @@ public:
 	virtual void OnMsg(uint32 scId, const char* msg, uint16 len)
 	{
 		MsgItem msgItem;
-		if (!msgItem.Init(scId, msg, len)) {
+		WD_IF (!msgItem.Init(scId, msg, len)) {
 			LogSave("Fail init msg: [%d]", scId);
 			return;
 		}
 
 		JValue val;
 		JReader reader;
-		if (!reader.parse(msgItem.GetBody(), msgItem.GetBody() + msgItem.GetBodySize(), val))
+		WD_IF (!reader.parse(msgItem.GetBody(), msgItem.GetBody() + msgItem.GetBodySize(), val))
 			return;
 
 		inMsgs_.Write(make_shared<JMsgItem>(scId, static_cast<EMsgType>(msgItem.head_.msgType_), val));
@@ -202,6 +202,11 @@ public:
 	{
 		LogSave("Destroy socket: [%d]", scId);
 
+		WD_IF (!scClientMap_.count(scId))
+			return;
+		auto clientPtr = scClientMap_.at(scId);
+
+		userClientMap_.erase(clientPtr->userId_);
 		scClientMap_.erase(scId);
 	}
 

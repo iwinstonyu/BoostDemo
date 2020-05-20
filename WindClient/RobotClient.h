@@ -6,6 +6,7 @@
 #include <Base/JsonTool.h>
 #include <Base/MsgType.h>
 #include <Base/MsgItem.h>
+#include <Base/Util.h>
 
 namespace wind {
 
@@ -46,14 +47,14 @@ public:
 	virtual void OnMsg(const char* msg, unsigned short len)
 	{
 		MsgItem msgItem;
-		if (!msgItem.Init(0, msg, len)) {
+		WD_IF (!msgItem.Init(0, msg, len)) {
 			LogSave("Fail init msg");
 			return;
 		}
 
 		JValue val;
 		JReader reader;
-		if (!reader.parse(msgItem.GetBody(), msgItem.GetBody() + msgItem.GetBodySize(), val))
+		WD_IF (!reader.parse(msgItem.GetBody(), msgItem.GetBody() + msgItem.GetBodySize(), val))
 			return;
 
 		inMsgs_.Write(make_shared<JMsgItem>(static_cast<EMsgType>(msgItem.head_.msgType_), val));
@@ -75,7 +76,7 @@ public:
 	void SendMsg(EMsgType msgType, JValue& val)
 	{
 		MsgItem msgItem;
-		if (!msgItem.Init(0, msgType, val)) {
+		WD_IF (!msgItem.Init(0, msgType, val)) {
 			return;
 		}
 
@@ -117,6 +118,18 @@ public:
 					case EMsgType::TalkAck:
 					{
 						LogSave("Talk ack: [%d][%d]", userId_, val["result"].asUInt());
+					}
+					break;
+					case EMsgType::Reset:
+					{
+						LogSave("Reset user: [%d]", userId_);
+						return;
+					}
+					break;
+					case EMsgType::SocketError:
+					{
+						LogSave("Socket error: [%d]", userId_);
+						return;
 					}
 					break;
 					default:

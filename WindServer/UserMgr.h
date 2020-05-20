@@ -46,7 +46,9 @@ public:
 
 	void OnRelogin(uint32 scId)
 	{
-		if (scId_){
+		LogSave("User on relogin: [%d]", userId_);
+
+		if (scId_) {
 			JValue val;
 			msgSendPtr_->SendMsg(scId_, EMsgType::Reset, val);
 		}
@@ -133,10 +135,10 @@ public:
 					break;
 					case EMsgType::Logout:
 					{
-						if (!msgItem.userId_)
+						WD_IF (!msgItem.userId_)
 							continue;
 
-						if (!users_.count(msgItem.userId_))
+						WD_IF (!users_.count(msgItem.userId_))
 							continue;
 						auto userPtr = users_.at(msgItem.userId_);
 
@@ -147,10 +149,10 @@ public:
 					break;
 					default:
 					{
-						if (!msgItem.userId_)
+						WD_IF (!msgItem.userId_)
 							continue;
 
-						if (!users_.count(msgItem.userId_))
+						WD_IF (!users_.count(msgItem.userId_))
 							continue;
 
 						auto userPtr = users_.at(msgItem.userId_);

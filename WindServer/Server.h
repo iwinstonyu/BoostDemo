@@ -49,9 +49,8 @@ public:
 		pipePtr_->OnCreate(scId_, info);
 	}
 
-	~Session() 
+	virtual ~Session() 
 	{
-		socket_.close();
 		pipePtr_->OnDestroy(scId_);
 	}
 
@@ -68,8 +67,15 @@ public:
 		}
 	}
 
-	void Start() {
+	void Start() 
+	{
 		ReadMsgHeader();
+	}
+
+	void Stop()
+	{
+		isStop_ = true;
+		socket_.close();
 	}
 
 private:
@@ -83,7 +89,8 @@ private:
 				ReadMsgBody();
 			}
 			else {
-				pipePtr_->OnError(scId_, ec.value(), ec.message());
+				if (!isStop_)
+					pipePtr_->OnError(scId_, ec.value(), ec.message());
 			}
 		});
 	}
@@ -98,7 +105,8 @@ private:
 				ReadMsgHeader();
 			}
 			else {
-				pipePtr_->OnError(scId_, ec.value(), ec.message());
+				if (!isStop_)
+					pipePtr_->OnError(scId_, ec.value(), ec.message());
 			}
 		});
 	}
@@ -114,7 +122,8 @@ private:
 					WriteMsg();
 			}
 			else {
-				pipePtr_->OnError(scId_, ec.value(), ec.message());
+				if (!isStop_)
+					pipePtr_->OnError(scId_, ec.value(), ec.message());
 			}
 		});
 	}
@@ -125,6 +134,7 @@ private:
 	deque<Msg> outMsgs_;
 	uint32 scId_ = 0;
 	IServerPipe* pipePtr_ = nullptr;
+	bool isStop_ = false;
 };
 typedef shared_ptr<Session> SessionPtr;
 
@@ -147,6 +157,7 @@ public:
 			LogSave("Fail leave no socket id: [%d]", scId);
 			return;
 		}
+		sessions_.at(scId)->Stop();
 
 		sessions_.erase(scId);
 	}
@@ -158,7 +169,7 @@ public:
 
 	void DeliverMsg(uint32 scId, const string& msg) 
 	{
-		if (!sessions_.count(scId)) {
+		WD_IF (!sessions_.count(scId)) {
 			LogSave("Fail deliver msg no socket id: [%d]", scId);
 			return;
 		}
