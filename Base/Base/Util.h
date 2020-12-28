@@ -25,6 +25,7 @@
 #include <string>
 #include <thread>	// this_thread
 #include <sstream> // ostringstream
+#include <fstream>
 //#include <Windows.h>
 using namespace std;
 
@@ -41,20 +42,25 @@ private:
 
 MyCS gLogCS;
 
-void LogSave(const char* pszFormat, ...) {
-	gLogCS.Lock();
+void LogSave(const char* filename, const char* pszFormat, ...) {
 	ostringstream oss;
-	oss << this_thread::get_id();
-	printf_s("[%s][%I64d]: ", oss.str().c_str(), time(nullptr));
+	oss << "[" << this_thread::get_id() << "][" << time(nullptr) << "]: ";
+	char buffer[1024] = {0};
 	va_list args;
 	va_start(args, pszFormat);
-	vprintf_s(pszFormat, args);
+	vsprintf_s(buffer, 1024, pszFormat, args);
 	va_end(args);
-	printf_s("\n");
+	oss << buffer;
+
+	gLogCS.Lock();
+	cout << oss.str() << endl;
 	fflush(stdout);
+	ofstream ofs(filename, ios::app);
+	ofs << oss.str() << endl;
+	ofs.close();
 	gLogCS.Unlock();
 }
 
-#define WD_IF(x)  if( (x) ? (LogSave("[%s][%d][%s]", __FILE__, __LINE__, #x ), 1) : 0 )
+#define WD_IF(x)  if( (x) ? (assert(0), LogSave("base.log", "[%s][%d][%s]", __FILE__, __LINE__, #x ), 1) : 0 )
 
 } // namespace wind

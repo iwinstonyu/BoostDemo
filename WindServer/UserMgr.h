@@ -39,14 +39,14 @@ public:
 
 	void OnLogin()
 	{
-		LogSave("User on login: [%d]", userId_);
+		LogSave("server.log", "server.log", "User on login: [%d][%d]", userId_, scId_);
 
 		LoginAck();
 	}
 
 	void OnRelogin(uint32 scId)
 	{
-		LogSave("User on relogin: [%d]", userId_);
+		LogSave("server.log", "User on relogin: [%d][%d][%d]", userId_, scId_, scId);
 
 		if (scId_) {
 			JValue val;
@@ -59,20 +59,27 @@ public:
 
 	void OnLogout()
 	{
-		LogSave("Logout user: [%d]", userId_);
+		LogSave("server.log", "Logout user: [%d][%d]", userId_, scId_);
 	}
 
-	void OnMsg(EMsgType msgType, JValue& val)
+	void OnMsg(uint32 scId, EMsgType msgType, JValue& val)
 	{
+		if (scId_ != scId) {
+			LogSave("server.log", "Ignore message from different socket: [%d][%d][%d]", userId_, scId_, scId);
+			return;
+		}
+
 		switch (msgType) {
 		case EMsgType::Talk:
 		{
 			string content = val["content"].asString();
 
-			LogSave("User talk: %d %s", userId_, content.c_str());
+			LogSave("server.log", "User talk: %d %d %d %.6s...%.6s", userId_, scId_, content.length(),
+				content.substr(0, 6).c_str(), content.substr(content.length() - 6, 6).c_str());
 
 			JValue valAck;
 			valAck["result"] = static_cast<uint32>(ETalk::Ok);
+			valAck["content"] = content;
 			msgSendPtr_->SendMsg(scId_, EMsgType::TalkAck, valAck);
 		}
 		break;
@@ -120,7 +127,7 @@ public:
 					{
 						uint32 userId = val["userId"].asUInt();
 
-						LogSave("Login user: [%d]", userId);
+						LogSave("server.log", "Login user: [%d][%d]", userId, msgItem.scId_);
 
 						if (!users_.count(userId)) {
 							UserPtr userPtr = make_shared<User>(userId, msgItem.scId_, this);
@@ -142,6 +149,8 @@ public:
 							continue;
 						auto userPtr = users_.at(msgItem.userId_);
 
+						LogSave("server.log", "Logout user: [%d][%d]", msgItem.userId_, msgItem.scId_);
+
 						userPtr->OnLogout();
 
 						users_.erase(msgItem.userId_);
@@ -156,7 +165,7 @@ public:
 							continue;
 
 						auto userPtr = users_.at(msgItem.userId_);
-						userPtr->OnMsg(msgItem.msgType_, val);
+						userPtr->OnMsg(msgItem.scId_, msgItem.msgType_, val);
 					}
 					break;
 					}

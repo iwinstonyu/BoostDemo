@@ -71,7 +71,9 @@ public:
 			while (true) {
 				for (auto it = disconnectScMap_.begin(); it != disconnectScMap_.end(); ) {
 					if (it->second < time(nullptr)) {
-						serverPtr_->CloseSocket(it->first);
+						uint32 scId = it->first;
+
+						serverPtr_->CloseSocket(scId);
 						it = disconnectScMap_.erase(it);
 					}
 					else {
@@ -88,29 +90,38 @@ public:
 					case EMsgType::CreateSocket:
 					{
 						WD_IF (scClientMap_.count(inMsg.scId_)) {
-							LogSave("Duplicate socket id on create: [%d]", inMsg.scId_);
-							continue;
+							LogSave("server.log", "Duplicate socket id on create: [%d]", inMsg.scId_);
+							break;
 						}
 
 						scClientMap_.insert({ inMsg.scId_, make_shared<Client>(inMsg.scId_) });
 
-						LogSave("Create socket: [%d]", inMsg.scId_);
+						LogSave("server.log", "Create socket: [%d]", inMsg.scId_);
 					}
 					break;
 					case EMsgType::SocketError:
 					{
+						if (disconnectScMap_.count(inMsg.scId_)) {
+							LogSave("server.log", "Socket error already in disconnect map: [%d][%d][%s]", inMsg.scId_, val["code"].asInt(), val["msg"].asCString());
+							break;
+						}
+
 						WD_IF (!scClientMap_.count(inMsg.scId_)) {
-							LogSave("Fail find socket: [%d]", inMsg.scId_);
-							continue;
+							LogSave("server.log", "Fail find socket: [%d]", inMsg.scId_);
+							break;
 						}
 						auto clientPtr = scClientMap_.at(inMsg.scId_);
 
-						JValue valLogout;
-						JMsgItemPtr msgItemLogoutPtr = make_shared<JMsgItem>(inMsg.scId_, EMsgType::Logout, valLogout);
-						msgItemLogoutPtr->userId_ = clientPtr->userId_;
-						userMsgs_.Write(msgItemLogoutPtr);
+						if (clientPtr->userId_) {
+							JValue valLogout;
+							JMsgItemPtr msgItemLogoutPtr = make_shared<JMsgItem>(inMsg.scId_, EMsgType::Logout, valLogout);
+							msgItemLogoutPtr->userId_ = clientPtr->userId_;
+							userMsgs_.Write(msgItemLogoutPtr);
+						}
 
-						LogSave("Socket error: [%d][%s]", inMsg.scId_, val["msg"].asCString());
+						disconnectScMap_.insert({ inMsg.scId_, time(nullptr) + 1 });
+
+						LogSave("server.log", "Socket error: [%d][%d][%d][%s]", clientPtr->userId_, inMsg.scId_, val["code"].asInt(), val["msg"].asCString());
 					}
 					break;
 					default:
@@ -148,7 +159,13 @@ public:
 					break;
 					case EMsgType::Reset:
 					{
+						if (disconnectScMap_.count(jMsgItem.scId_)) {
+							LogSave("server.log", "Reset already in disconnect map: [%d][%d][%s]", jMsgItem.scId_, val["code"].asInt(), val["msg"].asCString());
+							break;
+						}
+
 						disconnectScMap_.insert({ jMsgItem.scId_, time(nullptr) + 1 });
+						LogSave("server.log", "Proxy reset user msg: %d", jMsgItem.scId_);
 					}
 					break;
 					default:
@@ -177,7 +194,7 @@ public:
 	{
 		MsgItem msgItem;
 		WD_IF (!msgItem.Init(scId, msg, len)) {
-			LogSave("Fail init msg: [%d]", scId);
+			LogSave("server.log", "Fail init msg: [%d]", scId);
 			return;
 		}
 
@@ -189,18 +206,18 @@ public:
 		inMsgs_.Write(make_shared<JMsgItem>(scId, static_cast<EMsgType>(msgItem.head_.msgType_), val));
 	}
 
-	virtual void OnError(uint32 scId, int value, std::string msg)
+	virtual void OnError(uint32 scId, int code, std::string msg)
 	{
 		JValue val;
 		val["scId"] = scId;
-		val["value"] = value;
+		val["code"] = code;
 		val["msg"] = msg;
 		inMsgs_.Write(make_shared<JMsgItem>(scId, EMsgType::SocketError, val));
 	}
 
 	virtual void OnDestroy(uint32 scId)
 	{
-		LogSave("Destroy socket: [%d]", scId);
+		LogSave("server.log", "Destroy socket: [%d]", scId);
 
 		WD_IF (!scClientMap_.count(scId))
 			return;

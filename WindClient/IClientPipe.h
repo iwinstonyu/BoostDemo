@@ -12,7 +12,7 @@ public:
 	virtual void OnConnect() = 0;
 	virtual void OnDisconnect() = 0;
 	virtual void OnMsg(const char*, unsigned short) = 0;
-	virtual void OnError(int, const char*) = 0;
+	virtual void OnError(int, std::string msg) = 0;
 	virtual void OnReconnect() = 0;
 	virtual void OnReconnected() = 0;
 };

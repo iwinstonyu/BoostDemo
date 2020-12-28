@@ -32,32 +32,43 @@ namespace wind {
 using boost::asio::ip::tcp;
 using namespace std;
 
-class Client {
+class Client : public std::enable_shared_from_this<Client> {
 public:
 	Client(IClientPipe* pipePtr, string ip, int port)
 		: socket_(ioService_)
 		, pipePtr_(pipePtr)
+		, ip_(ip)
+		, port_(port)
 	{
-		tcp::resolver resovler(ioService_);
-		auto endpointIterator = resovler.resolve({ ip, std::to_string(port) });
-
-		ConnectServer(endpointIterator);
 	}
 
-	virtual ~Client() 
+	virtual ~Client()
 	{
+		ioService_.stop();
+		if (serviceThr_.joinable())
+			serviceThr_.join();
 	}
 
 	void Start()
 	{
+		tcp::resolver resovler(ioService_);
+		auto endpointIterator = resovler.resolve({ ip_, std::to_string(port_) });
+		ConnectServer(endpointIterator);
+
 		serviceThr_ = std::thread([this]()->void {
+			LogSave("client.log", "Running io service");
 			ioService_.run();
+			LogSave("client.log", "Stop io service");
 		});
 	}
 
 	void SendMsg(const string& msgStr) 
 	{
-		ioService_.post([this, msgStr]() {
+		auto self(shared_from_this());
+		ioService_.post([this, self, msgStr]() {
+			if (isStop_)
+				return;
+
 			Msg msg;
 			msg.Init(msgStr);
 
@@ -74,27 +85,40 @@ public:
 		SendMsg(msgStr);
 	}
 
-	void Close() 
+	void Close()
 	{
-		LogSave("Close client");
-		ioService_.post([this]() { socket_.close(); });
-		ioService_.stop();
-		serviceThr_.join();
+		LogSave("client.log", "Close client");
+		ioService_.post([this]() { 
+			LogSave("client.log", "Close socket");
+			isStop_ = true;
+			socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both); 
+			socket_.close();
+			pipePtr_->OnDisconnect();
+		});
 	}
 
 private:
 	void ConnectServer(tcp::resolver::iterator endpointIterator) 
 	{
-		LogSave("Client connecting");
+		LogSave("client.log", "Client connecting");
+		auto self(shared_from_this());
 		boost::asio::async_connect(socket_, endpointIterator,
-			[this](boost::system::error_code ec, tcp::resolver::iterator) {
+			[this, self](boost::system::error_code ec, tcp::resolver::iterator) {
+			if (isStop_)
+				return;
+
 			if (!ec) {
 				pipePtr_->OnConnect();
-
 				ReadMsgHeader();
 			}
 			else {
-				pipePtr_->OnError(ec.value(), "Fail connect server");
+				if (!isStop_) {
+					isStop_ = true;
+					pipePtr_->OnError(ec.value(), ec.message());
+					socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
+					socket_.close();
+					pipePtr_->OnDisconnect();
+				}
 			}
 		});
 	}
@@ -102,43 +126,63 @@ private:
 	void ReadMsgHeader() 
 	{
 		inMsg_.Clear();
+		auto self(shared_from_this());
 		boost::asio::async_read(socket_, boost::asio::buffer(inMsg_.Data(), Msg::HEADER_LENGTH),
-			[this](boost::system::error_code ec, size_t length) {
+			[this, self](boost::system::error_code ec, size_t length) {
+			if (isStop_)
+				return;
+
 			if (!ec && inMsg_.DecodeHeader()) {
 				ReadMsgBody();
 			}
 			else {
-				pipePtr_->OnError(ec.value(), "Fail read msg header");
+				if (!isStop_) {
+					isStop_ = true;
+					pipePtr_->OnError(ec.value(), ec.message());
+				}
 			}
 		});
 	}
 
 	void ReadMsgBody() 
 	{
+		auto self(shared_from_this());
 		boost::asio::async_read(socket_, boost::asio::buffer(inMsg_.Body(), inMsg_.BodyLength()),
-			[this](boost::system::error_code ec, size_t length) {
+			[this, self](boost::system::error_code ec, size_t length) {
+			if (isStop_)
+				return;
+
 			if (!ec) {
 				pipePtr_->OnMsg(inMsg_.Body(), inMsg_.BodyLength());
-
 				ReadMsgHeader();
 			}
 			else {
-				pipePtr_->OnError(ec.value(), "Fail read msg body");
+				if (!isStop_) {
+					isStop_ = true;
+					pipePtr_->OnError(ec.value(), ec.message());
+				}
 			}
 		});
 	}
 
 	void WriteMsg() 
 	{
+		auto self(shared_from_this());
 		boost::asio::async_write(socket_, boost::asio::buffer(outMsgs_.front().Data(), outMsgs_.front().Length()),
-			[this](boost::system::error_code ec, size_t length) {
+			[this, self](boost::system::error_code ec, size_t length) {
+			if (isStop_)
+				return;
+
 			if (!ec) {
 				outMsgs_.pop_front();
 				if (!outMsgs_.empty())
 					WriteMsg();
 			}
 			else {
-				pipePtr_->OnError(ec.value(), "Fail write msg");
+				if (!isStop_) {
+					isStop_ = true;
+					pipePtr_->OnError(ec.value(), ec.message());
+				}
 			}
 		});
 	}
@@ -147,9 +191,12 @@ private:
 	boost::asio::io_service ioService_;
 	tcp::socket socket_;
 	IClientPipe* pipePtr_ = nullptr;
+	string ip_;
+	int port_ = 0;
 	Msg inMsg_;
 	deque<Msg> outMsgs_;
 	std::thread serviceThr_;
+	bool isStop_ = false;
 };
 typedef shared_ptr<Client> ClientPtr;
 

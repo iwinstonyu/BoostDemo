@@ -11,6 +11,8 @@ using namespace wind;
 
 int main(int argc, char* argv[])
 {
+	srand(static_cast<int>(time(nullptr)));
+
 	if (argc < 2)
 		return 1;
 	int port = atoi(argv[1]);
@@ -37,14 +39,14 @@ int main(int argc, char* argv[])
 // 
 // 					server.DeliverMsg(msg); 
 // 
-// 					LogSave("Deliver msg: %s", szContent);
+// 					LogSave("server.log", "Deliver msg: %s", szContent);
 // 				} );
 // 
 // 				Sleep(rand() % 30 * 1000);
 // 			}
 // 		});
 
-		//thread t([&server]() { Sleep(5000); LogSave("Close server..."); server.Close(); });
+		//thread t([&server]() { Sleep(5000); LogSave("server.log", "Close server..."); server.Close(); });
 
 		//io_service.run();
 	}

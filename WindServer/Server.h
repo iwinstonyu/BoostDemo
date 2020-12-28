@@ -51,13 +51,15 @@ public:
 
 	virtual ~Session() 
 	{
-		pipePtr_->OnDestroy(scId_);
 	}
 
 	uint32 ScId() { return scId_; }
 
 	void DeliverMsg(const string& msgStr)
 	{
+		if (isStop_)
+			return;
+
 		Msg msg;
 		msg.Init(msgStr);
 
@@ -67,46 +69,64 @@ public:
 		}
 	}
 
-	void Start() 
+	void Start()
 	{
 		ReadMsgHeader();
 	}
 
-	void Stop()
+	void Close()
 	{
+		LogSave("server.log", "Close socket: %d", scId_);
+
 		isStop_ = true;
+		boost::system::error_code ec;
+		socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+		if (ec) {
+			LogSave("server.log", "Shutdown error: [%d][%s]", ec.value(), ec.message());
+		}
 		socket_.close();
+		pipePtr_->OnDestroy(scId_);
 	}
 
 private:
-	void ReadMsgHeader() 
+	void ReadMsgHeader()
 	{
 		inMsg_.Clear();
 		auto self(shared_from_this());
 		boost::asio::async_read(socket_, boost::asio::buffer(inMsg_.Data(), Msg::HEADER_LENGTH),
 			[this, self](boost::system::error_code ec, size_t length) {
+			if (isStop_)
+				return;
+
 			if (!ec && inMsg_.DecodeHeader()) {
 				ReadMsgBody();
 			}
 			else {
-				if (!isStop_)
+				if (!isStop_) {
+					isStop_ = true;
 					pipePtr_->OnError(scId_, ec.value(), ec.message());
+				}
 			}
 		});
 	}
 
-	void ReadMsgBody() 
+	void ReadMsgBody()
 	{
 		auto self(shared_from_this());
 		boost::asio::async_read(socket_, boost::asio::buffer(inMsg_.Body(), inMsg_.BodyLength()),
 			[this, self](boost::system::error_code ec, size_t length) {
+			if (isStop_)
+				return;
+
 			if (!ec) {
 				pipePtr_->OnMsg(scId_, inMsg_.Body(), inMsg_.BodyLength());
 				ReadMsgHeader();
 			}
 			else {
-				if (!isStop_)
+				if (!isStop_) {
+					isStop_ = true;
 					pipePtr_->OnError(scId_, ec.value(), ec.message());
+				}
 			}
 		});
 	}
@@ -116,14 +136,19 @@ private:
 		auto self(shared_from_this());
 		boost::asio::async_write(socket_, boost::asio::buffer(outMsgs_.front().Data(), outMsgs_.front().Length()),
 			[this, self](boost::system::error_code ec, size_t length) {
+			if (isStop_)
+				return;
+
 			if (!ec) {
 				outMsgs_.pop_front();
 				if (!outMsgs_.empty())
 					WriteMsg();
 			}
 			else {
-				if (!isStop_)
+				if (!isStop_) {
+					isStop_ = true;
 					pipePtr_->OnError(scId_, ec.value(), ec.message());
+				}
 			}
 		});
 	}
@@ -154,10 +179,10 @@ public:
 	void Leave(uint32 scId) 
 	{
 		if (!sessions_.count(scId)) {
-			LogSave("Fail leave no socket id: [%d]", scId);
+			LogSave("server.log", "Fail leave no socket id: [%d]", scId);
 			return;
 		}
-		sessions_.at(scId)->Stop();
+		sessions_.at(scId)->Close();
 
 		sessions_.erase(scId);
 	}
@@ -170,7 +195,7 @@ public:
 	void DeliverMsg(uint32 scId, const string& msg) 
 	{
 		WD_IF (!sessions_.count(scId)) {
-			LogSave("Fail deliver msg no socket id: [%d]", scId);
+			LogSave("server.log", "Fail deliver msg no socket id: [%d]", scId);
 			return;
 		}
 
@@ -189,7 +214,7 @@ public:
 		, socket_(ioService_)
 		, pipePtr_(pipePtr)
 	{
-		LogSave("Start server");
+		LogSave("server.log", "Start server");
 		AcceptClient();
 	}
 
@@ -216,7 +241,7 @@ public:
 	void Start()
 	{
 		serviceThr_ = std::thread([this]()->void { 
-			LogSave("Run io service");
+			LogSave("server.log", "Run io service");
 			ioService_.run(); 
 		});
 	}
@@ -235,13 +260,13 @@ private:
 	{
 		acceptor_.async_accept(socket_, [this](boost::system::error_code ec) {
 			if (!ec) {
-				LogSave("Accept socket: [%s:%d]", socket_.remote_endpoint().address().to_string().c_str(), socket_.remote_endpoint().port());
+				LogSave("server.log", "Accept socket: [%s:%d]", socket_.remote_endpoint().address().to_string().c_str(), socket_.remote_endpoint().port());
 				auto sessionPtr = std::make_shared<Session>(++socketId_, std::move(socket_), pipePtr_);
 				pool_.Join(sessionPtr);
 				sessionPtr->Start();
 			}
 			else {
-				LogSave("Accept socket error: %d", ec.value());
+				LogSave("server.log", "Accept socket error: %d", ec.value());
 			}
 			AcceptClient();
 		});

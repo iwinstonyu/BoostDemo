@@ -21,7 +21,7 @@ CRITICAL_SECTION gLogCS;
 //	EnterCriticalSection(&gLogCS);
 //	va_list args;
 //	va_start(args, pszFormat);
-//	LogSave(pszFormat, args);
+//	LogSave("client.log", pszFormat, args);
 //	va_end(args);
 //	LeaveCriticalSection(&gLogCS);
 //}
@@ -30,16 +30,16 @@ string RandContent() {
 	return gContents[rand() % gContentSize];
 }
 
-void ForkClient(int clientId, string ip, int port) {
-	// 每个线程初始化种子
-	srand(static_cast<int>(::time(nullptr)) + clientId);
-
+void ForkClient(int clientId, string ip, int port, std::atomic<bool>& running) {
 	try {
 		RobotClient robot(clientId, ip, port);
 		robot.Start();
 
-		char c;
-		cin >> c;
+		while (robot.Alive()) {
+			Sleep(100);
+		}
+
+		LogSave("client.log", "Robot[%d] dead", clientId);
 
 // 		boost::asio::io_service io_service;
 // 
@@ -61,33 +61,42 @@ void ForkClient(int clientId, string ip, int port) {
 // 			client.SendMsg(msg);
 // 		}
 
-// 		while (true) {
-// // 			if (client.Online()) {
-// //  				string content = RandContent();
-// //  				Msg msg;
-// //  				msg.SetBodyLength(content.length());
-// //  				memcpy(msg.Body(), content.c_str(), msg.BodyLength());
-// //  				msg.EncodeHeader();
-// //  				client.SendMsg(msg);
-// // 			}
-// // 
-// // 			Sleep(rand() % 30 * 1000);
-// 
-// 			if (client.Online()) {
-// 				Sleep(5000);
-// 				client.Logout();
-// 				t.join();
-// 				break;
-// 			}
-// 		}
+ 		//while (true) {
+  	//		if (robot.Online()) {
+			//	int len = rand() % 10240;
+			//	char arr[10240] = {0};
+			//	for (int i = 0; i < len; ++i) {
+			//		arr[i] = rand() % 26 + 'A';
+			//	}
+
+   //				Msg msg;
+   //				msg.SetBodyLength(content.length());
+   //				memcpy(msg.Body(), content.c_str(), msg.BodyLength());
+   //				msg.EncodeHeader();
+   //				client.SendMsg(msg);
+  	//		}
+  
+  	//		Sleep(rand() % 30 * 1000);
+ 
+ 		//	//if (client.Online()) {
+ 		//	//	Sleep(5000);
+ 		//	//	client.Logout();
+ 		//	//	t.join();
+ 		//	//	break;
+ 		//	//}
+ 		//}
 	}
 	catch (std::exception& e) {
 		cout << "Exception: " << e.what() << endl;
 	}
+
+	running = false;
 }
 
 int main(int argc, char* argv[])
 {
+	srand(static_cast<int>(time(nullptr)));
+
 // 	ifstream ifs("Resource/sgyy.txt");
 // 	if (ifs) {
 // 		int lineno = 0;
@@ -106,12 +115,41 @@ int main(int argc, char* argv[])
 		return 1;
 	string ip(argv[1]);
 	int port = atoi(argv[2]);
+	//int userId = atoi(argv[3]);
 
-	vector<thread> clients;
-	clients.reserve(500);
-	for (int i = 1; i <= 1; ++i) {
-		clients.emplace_back(ForkClient, i, ip, port);
+	Sleep(3000);
+
+	struct RobotDriver {
+		thread thr_;
+		std::atomic<bool> running_ = false;
+	};
+
+	vector<RobotDriver*> drivers;
+	drivers.reserve(500);
+	while (true) {
+		for (auto it = drivers.begin(); it != drivers.end();) {
+			if (!(*it)->running_) {
+				if ((*it)->thr_.joinable())
+					(*it)->thr_.join();
+				delete *it;
+				it = drivers.erase(it);
+			}
+			else {
+				++it;
+			}
+		}
+
+		int amount = rand() % 90 + 10;
+		while (drivers.size() < amount) {
+			RobotDriver* driverPtr = new RobotDriver;
+			driverPtr->running_ = true;
+			driverPtr->thr_ = std::thread(ForkClient, rand() % 100 + 1, ip, port, std::ref(driverPtr->running_));
+			drivers.push_back(driverPtr);
+		}
+
+		Sleep(100);
 	}
+
 
 // 	map<int, ostringstream> ossMap;
 // 	auto& oss1 = ossMap[1];
@@ -130,9 +168,9 @@ int main(int argc, char* argv[])
 // 		cout << gContents[nRand] << endl;
 // 	}
 
-	for_each(clients.begin(), clients.end(), [](thread& t) {
-		t.join();
-	});
+	//for_each(clients.begin(), clients.end(), [](thread& t) {
+	//	t.join();
+	//});
 
 	system("pause");
     return 0;

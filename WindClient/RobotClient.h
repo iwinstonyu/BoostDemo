@@ -7,6 +7,7 @@
 #include <Base/MsgType.h>
 #include <Base/MsgItem.h>
 #include <Base/Util.h>
+#include <random>
 
 namespace wind {
 
@@ -30,8 +31,16 @@ public:
 	RobotClient(uint32 userId, string ip, int port)
 		: userId_(userId)
 	{
-		clientPtr_ = new Client(this, ip, port);
+		std::uniform_int_distribution<int> distrib(0, 120);
+		liveTime_ = time(nullptr) + distrib(engine_);
+
+		clientPtr_ = make_shared<Client>(this, ip, port);
 		clientPtr_->Start();
+	}
+
+	~RobotClient() {
+		if (runThr_.joinable())
+			runThr_.join();
 	}
 
 	virtual void OnConnect()
@@ -48,7 +57,7 @@ public:
 	{
 		MsgItem msgItem;
 		WD_IF (!msgItem.Init(0, msg, len)) {
-			LogSave("Fail init msg");
+			LogSave("client.log", "Fail init msg");
 			return;
 		}
 
@@ -59,9 +68,11 @@ public:
 
 		inMsgs_.Write(make_shared<JMsgItem>(static_cast<EMsgType>(msgItem.head_.msgType_), val));
 	}
-	virtual void OnError(int, const char*)
+	virtual void OnError(int code, string msg)
 	{
 		JValue val;
+		val["code"] = code;
+		val["msg"] = msg;
 		inMsgs_.Write(make_shared<JMsgItem>(EMsgType::SocketError, val));
 	}
 	virtual void OnReconnect()
@@ -83,10 +94,13 @@ public:
 		clientPtr_->SendMsg(msgItem.GetBuff(), msgItem.GetBuffSize());
 	}
 
+	bool Online() { return isConnecting_ && isLogin_ && !isStop_; }
+	bool Alive() { return alive_; }
+
 	void Start()
 	{
 		runThr_ = std::thread([this]()->void {
-			while(true) {
+			while(alive_) {
 				JMsgItemPtr inMsgPtr = nullptr;
 				while (inMsgPtr = inMsgs_.Read()) {
 					auto& inMsg = *inMsgPtr;
@@ -97,7 +111,7 @@ public:
 					{
 						isConnecting_ = true;
 
-						LogSave("Connect socket: [%d]", userId_);
+						LogSave("client.log", "Connect socket: [%d]", userId_);
 
 						JValue val;
 						val["userId"] = userId_;
@@ -108,28 +122,36 @@ public:
 					{
 						isLogin_ = true;
 
-						LogSave("Login ack: [%d]", userId_);
-
-						JValue val;
-						val["content"] = "Hello world";
-						SendMsg(EMsgType::Talk, val);
+						LogSave("client.log", "Login ack: [%d]", userId_);
 					}
 					break;
 					case EMsgType::TalkAck:
 					{
-						LogSave("Talk ack: [%d][%d]", userId_, val["result"].asUInt());
+						string talkEcho = val["content"].asString();
+						assert(talkEcho == talkContent_);
+						LogSave("client.log", "Talk echo: [%d][%d] %.6s...%.6s", userId_, talkEcho.length(),
+							talkEcho.substr(0, 6).c_str(), talkEcho.substr(talkEcho.length() - 6, 6).c_str());
+						talkContent_ = "";
 					}
 					break;
 					case EMsgType::Reset:
 					{
-						LogSave("Reset user: [%d]", userId_);
-						return;
+						LogSave("client.log", "Reset user: [%d]", userId_);
+						isStop_ = true;
 					}
 					break;
 					case EMsgType::SocketError:
 					{
-						LogSave("Socket error: [%d]", userId_);
-						return;
+						LogSave("client.log", "Socket error: [%d] %d %s", userId_, val["code"].asInt(), val["msg"].asCString());
+						clientPtr_->Close();
+						isStop_ = true;
+					}
+					break;
+					case EMsgType::DisconnectSocket:
+					{
+						LogSave("client.log", "Disconnect socket: [%d]", userId_);
+						isStop_ = true;
+						alive_ = false;
 					}
 					break;
 					default:
@@ -138,17 +160,69 @@ public:
 					break;
 					}
 				}
+
+				if (liveTime_ && liveTime_ < time(nullptr)) {
+					liveTime_ = 0;
+					LogSave("client.log", "Time out for live: %d", userId_);
+					clientPtr_->Close();
+					isStop_ = true;
+				}
+
+				if (Online()) {
+					if (talkTime_ <= time(nullptr) && talkContent_.empty()) {
+						std::uniform_int_distribution<int> distrib(0, 30);
+						talkTime_ = distrib(engine_) + time(nullptr);
+
+						int len = 0;
+						distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 10 });
+						int lenType = distrib(engine_);
+						if (lenType < 5) {
+							distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 64 });
+							len = distrib(engine_) + 13;
+						}
+						else if (lenType < 8) {
+							distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 1024 });
+							len = distrib(engine_) + 13;
+						}
+						else {
+							distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 8000 });
+							len = distrib(engine_) + 13;
+						}
+
+						char arr[10013] = { 0 };
+						for (int i = 0; i < len; ++i) {
+							distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 25 });
+							arr[i] = distrib(engine_) + 'A';
+						}
+
+						talkContent_ = arr;
+						JValue val;
+						val["content"] = talkContent_;
+						SendMsg(EMsgType::Talk, val);
+
+						LogSave("client.log", "Client talk: [%d][%d] %.6s...%.6s", userId_, talkContent_.length(),
+							talkContent_.substr(0, 6).c_str(), talkContent_.substr(talkContent_.length() - 6, 6).c_str());
+					}
+				}
+
+				Sleep(100);
 			}
 		});
 	}
 
 private:
-	Client* clientPtr_ = nullptr;
+	shared_ptr<Client> clientPtr_ = nullptr;
 	std::thread runThr_;
 	uint32 userId_ = 0;
 	bool isConnecting_ = false;
 	bool isLogin_ = false;
 	SingleQueue<JMsgItem> inMsgs_;
+	bool isStop_ = false;
+	time_t talkTime_ = time(nullptr) + 5;
+	string talkContent_;
+	atomic<bool> alive_ = true;
+	std::mt19937 engine_{ std::random_device{}() };
+	time_t liveTime_ = 0;
 };
 
 }
