@@ -39,7 +39,7 @@ public:
 
 	void OnLogin()
 	{
-		LogSave("server.log", "server.log", "User on login: [%d][%d]", userId_, scId_);
+		LogSave("server.log", "User on login: [%d][%d]", userId_, scId_);
 
 		LoginAck();
 	}

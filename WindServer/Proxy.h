@@ -69,15 +69,12 @@ public:
 	{
 		runThr_ = std::thread([this]()->void {
 			while (true) {
-				for (auto it = disconnectScMap_.begin(); it != disconnectScMap_.end(); ) {
-					if (it->second < time(nullptr)) {
+				for (auto it = disconnectScMap_.begin(); it != disconnectScMap_.end(); ++it) {
+					if (!it->second.closeSocket_ && it->second.closeTime_ <= time(nullptr)) {
 						uint32 scId = it->first;
 
+						it->second.closeSocket_ = true;
 						serverPtr_->CloseSocket(scId);
-						it = disconnectScMap_.erase(it);
-					}
-					else {
-						++it;
 					}
 				}
 
@@ -85,6 +82,11 @@ public:
 				while (inMsgPtr = inMsgs_.Read()) {
 					auto& inMsg = *inMsgPtr;
 					auto& val = inMsg.val_;
+
+					if (disconnectScMap_.count(inMsg.scId_)) {
+						LogSave("server.log", "Socket already in disconnect map: [%d][%d][%d]", inMsg.userId_, inMsg.scId_, inMsg.msgType_);
+						continue;
+					}
 
 					switch (inMsg.msgType_) {
 					case EMsgType::CreateSocket:
@@ -126,8 +128,9 @@ public:
 					break;
 					default:
 					{
-						WD_IF (!scClientMap_.count(inMsg.scId_)) {
-							continue;
+						if (!scClientMap_.count(inMsg.scId_)) {
+							LogSave("server.log", "Socket already destroyed: [%d][%d]", inMsg.scId_, inMsg.msgType_);
+							break;
 						}
 						auto clientPtr = scClientMap_.at(inMsg.scId_);
 
@@ -143,7 +146,8 @@ public:
 					auto& jMsgItem = *jMsgItemPtr;
 					auto& val = jMsgItem.val_;
 
-					WD_IF (!scClientMap_.count(jMsgItem.scId_)) {
+					if (!scClientMap_.count(jMsgItem.scId_)) {
+						LogSave("erver.log", "Fail send msg out with socket not found: [%d][%d]", jMsgItem.scId_, jMsgItem.msgType_);
 						continue;
 					}
 					auto clientPtr = scClientMap_.at(jMsgItem.scId_);
@@ -160,7 +164,7 @@ public:
 					case EMsgType::Reset:
 					{
 						if (disconnectScMap_.count(jMsgItem.scId_)) {
-							LogSave("server.log", "Reset already in disconnect map: [%d][%d][%s]", jMsgItem.scId_, val["code"].asInt(), val["msg"].asCString());
+							LogSave("server.log", "Reset already in disconnect map: [%d]", jMsgItem.scId_);
 							break;
 						}
 
@@ -223,8 +227,11 @@ public:
 			return;
 		auto clientPtr = scClientMap_.at(scId);
 
+		LogSave("server.log", "Destroy socket next: [%d][%d]", clientPtr->userId_, scId);
+
 		userClientMap_.erase(clientPtr->userId_);
 		scClientMap_.erase(scId);
+		disconnectScMap_.erase(scId);
 	}
 
 	virtual void OnFlashDisconnect(uint32 scId)
@@ -260,7 +267,13 @@ public:
 private:
 	std::map<uint32, ClientPtr> scClientMap_;
 	std::map<uint32, ClientPtr> userClientMap_;
-	map<uint32, time_t> disconnectScMap_;
+	struct DisconnectInfo {
+		DisconnectInfo(time_t closeTime) : closeTime_(closeTime), closeSocket_(false) {}
+
+		time_t closeTime_ = 0;
+		bool closeSocket_ = false;
+	};
+	map<uint32, DisconnectInfo> disconnectScMap_;
 	SingleQueue<JMsgItem> inMsgs_;
 	SingleQueue<JMsgItem> outMsgs_;
 	SingleQueue<JMsgItem> userMsgs_;

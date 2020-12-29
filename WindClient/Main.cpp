@@ -143,7 +143,7 @@ int main(int argc, char* argv[])
 		while (drivers.size() < amount) {
 			RobotDriver* driverPtr = new RobotDriver;
 			driverPtr->running_ = true;
-			driverPtr->thr_ = std::thread(ForkClient, rand() % 100 + 1, ip, port, std::ref(driverPtr->running_));
+			driverPtr->thr_ = std::thread(ForkClient, rand() % 100 + 10000, ip, port, std::ref(driverPtr->running_));
 			drivers.push_back(driverPtr);
 		}
 
