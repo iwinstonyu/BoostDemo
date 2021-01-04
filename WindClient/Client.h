@@ -115,7 +115,11 @@ private:
 				if (!isStop_) {
 					isStop_ = true;
 					pipePtr_->OnError(ec.value(), ec.message());
-					socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
+					boost::system::error_code ec;
+					socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+					if (ec) {
+						LogSave("client.log", "Shutdown error: [%d][%s]", ec.value(), ec.message());
+					}
 					socket_.close();
 					pipePtr_->OnDisconnect();
 				}

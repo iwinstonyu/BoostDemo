@@ -69,6 +69,8 @@ public:
 	{
 		runThr_ = std::thread([this]()->void {
 			while (true) {
+				LogSave("server.log", "Socket size: %d", scClientMap_.size());
+
 				for (auto it = disconnectScMap_.begin(); it != disconnectScMap_.end(); ++it) {
 					if (!it->second.closeSocket_ && it->second.closeTime_ <= time(nullptr)) {
 						uint32 scId = it->first;
@@ -108,7 +110,7 @@ public:
 							break;
 						}
 
-						WD_IF (!scClientMap_.count(inMsg.scId_)) {
+						if (!scClientMap_.count(inMsg.scId_)) {
 							LogSave("server.log", "Fail find socket: [%d]", inMsg.scId_);
 							break;
 						}
@@ -146,8 +148,13 @@ public:
 					auto& jMsgItem = *jMsgItemPtr;
 					auto& val = jMsgItem.val_;
 
+					if (disconnectScMap_.count(jMsgItem.scId_) && disconnectScMap_.at(jMsgItem.scId_).closeSocket_) {
+						LogSave("server.log", "Fail send msg with socket already closed: [%d][%d]", jMsgItem.scId_, jMsgItem.msgType_);
+						continue;
+					}
+
 					if (!scClientMap_.count(jMsgItem.scId_)) {
-						LogSave("erver.log", "Fail send msg out with socket not found: [%d][%d]", jMsgItem.scId_, jMsgItem.msgType_);
+						LogSave("server.log", "Fail send msg out with socket not found: [%d][%d]", jMsgItem.scId_, jMsgItem.msgType_);
 						continue;
 					}
 					auto clientPtr = scClientMap_.at(jMsgItem.scId_);

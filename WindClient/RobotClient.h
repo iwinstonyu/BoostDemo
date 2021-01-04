@@ -33,6 +33,7 @@ public:
 	{
 		std::uniform_int_distribution<int> distrib(0, 120);
 		liveTime_ = time(nullptr) + distrib(engine_);
+		liveTime_ = time(nullptr) + 3600;
 
 		clientPtr_ = make_shared<Client>(this, ip, port);
 		clientPtr_->Start();
@@ -168,42 +169,42 @@ public:
 					isStop_ = true;
 				}
 
-				if (Online()) {
-					if (talkTime_ <= time(nullptr) && talkContent_.empty()) {
-						std::uniform_int_distribution<int> distrib(0, 30);
-						talkTime_ = distrib(engine_) + time(nullptr);
+				//if (Online()) {
+				//	if (talkTime_ <= time(nullptr) && talkContent_.empty()) {
+				//		std::uniform_int_distribution<int> distrib(0, 30);
+				//		talkTime_ = distrib(engine_) + time(nullptr);
 
-						int len = 0;
-						distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 10 });
-						int lenType = distrib(engine_);
-						if (lenType < 5) {
-							distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 64 });
-							len = distrib(engine_) + 13;
-						}
-						else if (lenType < 8) {
-							distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 1024 });
-							len = distrib(engine_) + 13;
-						}
-						else {
-							distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 8000 });
-							len = distrib(engine_) + 13;
-						}
+				//		int len = 0;
+				//		distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 10 });
+				//		int lenType = distrib(engine_);
+				//		if (lenType < 5) {
+				//			distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 64 });
+				//			len = distrib(engine_) + 13;
+				//		}
+				//		else if (lenType < 8) {
+				//			distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 1024 });
+				//			len = distrib(engine_) + 13;
+				//		}
+				//		else {
+				//			distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 8000 });
+				//			len = distrib(engine_) + 13;
+				//		}
 
-						char arr[10013] = { 0 };
-						for (int i = 0; i < len; ++i) {
-							distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 25 });
-							arr[i] = distrib(engine_) + 'A';
-						}
+				//		char arr[10013] = { 0 };
+				//		for (int i = 0; i < len; ++i) {
+				//			distrib.param(std::uniform_int_distribution<int>::param_type{ 0, 25 });
+				//			arr[i] = distrib(engine_) + 'A';
+				//		}
 
-						talkContent_ = arr;
-						JValue val;
-						val["content"] = talkContent_;
-						SendMsg(EMsgType::Talk, val);
+				//		talkContent_ = arr;
+				//		JValue val;
+				//		val["content"] = talkContent_;
+				//		SendMsg(EMsgType::Talk, val);
 
-						LogSave("client.log", "Client talk: [%d][%d] %.6s...%.6s", userId_, talkContent_.length(),
-							talkContent_.substr(0, 6).c_str(), talkContent_.substr(talkContent_.length() - 6, 6).c_str());
-					}
-				}
+				//		LogSave("client.log", "Client talk: [%d][%d] %.6s...%.6s", userId_, talkContent_.length(),
+				//			talkContent_.substr(0, 6).c_str(), talkContent_.substr(talkContent_.length() - 6, 6).c_str());
+				//	}
+				//}
 
 				Sleep(100);
 			}

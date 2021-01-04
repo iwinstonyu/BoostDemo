@@ -202,6 +202,8 @@ public:
 		sessions_.at(scId)->DeliverMsg(msg);
 	}
 
+	size_t SessionSize() { return sessions_.size(); }
+
 private:
 	std::map<uint32, SessionPtr> sessions_;
 };
@@ -268,6 +270,7 @@ private:
 			else {
 				LogSave("server.log", "Accept socket error: %d", ec.value());
 			}
+			LogSave("server.log", "Session size: %d", pool_.SessionSize());
 			AcceptClient();
 		});
 	}

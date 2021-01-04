@@ -98,6 +98,8 @@ public:
 		msgSendPtr_->SendMsg(scId_, EMsgType::LoginAck, val);
 	}
 
+	uint32 ScId() { return scId_; }
+
 	uint32 userId_ = 0;
 	uint32 scId_ = 0;
 	IMsgSender* msgSendPtr_ = nullptr;
@@ -143,11 +145,16 @@ public:
 					case EMsgType::Logout:
 					{
 						WD_IF (!msgItem.userId_)
-							continue;
+							break;
 
 						WD_IF (!users_.count(msgItem.userId_))
-							continue;
+							break;
 						auto userPtr = users_.at(msgItem.userId_);
+
+						if (userPtr->ScId() != msgItem.scId_) {
+							LogSave("server.log", "User logout with different socket id: [%d][%d][%d]", msgItem.userId_, userPtr->ScId(), msgItem.scId_);
+							break;
+						}
 
 						LogSave("server.log", "Logout user: [%d][%d]", msgItem.userId_, msgItem.scId_);
 
@@ -159,10 +166,10 @@ public:
 					default:
 					{
 						WD_IF (!msgItem.userId_)
-							continue;
+							break;
 
 						WD_IF (!users_.count(msgItem.userId_))
-							continue;
+							break;
 
 						auto userPtr = users_.at(msgItem.userId_);
 						userPtr->OnMsg(msgItem.scId_, msgItem.msgType_, val);

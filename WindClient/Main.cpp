@@ -139,12 +139,15 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		int amount = rand() % 90 + 10;
-		while (drivers.size() < amount) {
-			RobotDriver* driverPtr = new RobotDriver;
-			driverPtr->running_ = true;
-			driverPtr->thr_ = std::thread(ForkClient, rand() % 100 + 10000, ip, port, std::ref(driverPtr->running_));
-			drivers.push_back(driverPtr);
+		if (drivers.size() < 1000) {
+			LogSave("client.log", "Drivers' amount: %d", drivers.size());
+			int amount = rand() % 10;
+			for (int i = 0; i < amount; ++i) {
+				RobotDriver* driverPtr = new RobotDriver;
+				driverPtr->running_ = true;
+				driverPtr->thr_ = std::thread(ForkClient, drivers.size() + 10000, ip, port, std::ref(driverPtr->running_));
+				drivers.push_back(driverPtr);
+			}
 		}
 
 		Sleep(100);
